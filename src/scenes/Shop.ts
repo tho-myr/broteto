@@ -124,9 +124,14 @@ export class Shop extends Scene {
 
 
     manualReroll() {
-        if (this.runState.currency >= this.runState.rerollPrice) {
-             this.runState.currency -= this.runState.rerollPrice;
-             this.runState.rerollPrice += 1; // Price increase
+        const isShopEmpty = this.shopItems.every(item => item === null);
+        const price = isShopEmpty ? 0 : this.runState.rerollPrice;
+
+        if (this.runState.currency >= price) {
+             this.runState.currency -= price;
+             if (!isShopEmpty) {
+                this.runState.rerollPrice += 1; // Price only increases if not the free empty-shop reroll
+             }
              this.reroll(true);
              this.updateCurrencyUI();
         }
@@ -242,7 +247,11 @@ export class Shop extends Scene {
 
     updateCurrencyUI() {
         this.currencyText.setText(`Gold: ${this.runState.currency}`);
-        this.rerollBtn.setText(`Reroll (${this.runState.rerollPrice})`);
+        
+        const isShopEmpty = this.shopItems.every(item => item === null);
+        const price = isShopEmpty ? 0 : this.runState.rerollPrice;
+        
+        this.rerollBtn.setText(`Reroll (${price})`);
     }
 
     updateInventoryUI() {
