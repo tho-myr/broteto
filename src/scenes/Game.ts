@@ -196,8 +196,11 @@ export class Game extends Scene {
 
         // Spawning logic
         this.spawnTimer += delta;
-        const spawnInterval = Math.max(200, 1000 - (this.runState.wave * 50)); 
-        if (this.spawnTimer > spawnInterval) {
+        // Scale spawn rate: Starts at 800ms, decreases by 30ms per wave, cap at 60ms
+        const spawnInterval = Math.max(60, 800 - (this.runState.wave * 30)); 
+        
+        // Cap total enemies at 500
+        if (this.spawnTimer > spawnInterval && this.enemies.countActive() < 500) {
             this.spawnEnemy();
             this.spawnTimer = 0;
         }
@@ -218,9 +221,11 @@ export class Game extends Scene {
          const cy = Phaser.Math.Clamp(this.player.y + Math.sin(angle)*dist, 50, 1950);
          
          const stats: EnemyStats = {
-            hp: Math.floor((20 + (this.runState.wave * 5)) / 2),
+            // Health scales linearly with wave count
+            hp: 15 + (this.runState.wave * 8),
             damage: 2 + Math.floor(this.runState.wave / 2),
-            speed: 80 + (this.runState.wave * 2),
+            // Speed scales really slowly (0.5 per wave starting from 50)
+            speed: 50 + (this.runState.wave * 0.5),
             xpValue: 1 + Math.floor(this.runState.wave/5)
          };
          
