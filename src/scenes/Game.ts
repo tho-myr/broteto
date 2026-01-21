@@ -36,8 +36,6 @@ export class Game extends Scene {
     }
 
     create(data: { newRun: boolean, runState?: RunState }) {
-        console.log('Starting game, new run:', data.newRun);
-
         if (data.runState) {
             this.runState = data.runState;
         } else {
@@ -135,6 +133,12 @@ export class Game extends Scene {
 
         // UI
         this.createUI();
+
+        // Pause Menu
+        this.input.keyboard?.on('keydown-ESC', () => {
+             this.scene.pause();
+             this.scene.launch('Pause');
+        });
     }
 
     createNewRun(): RunState {

@@ -5,6 +5,7 @@ import { Preload } from '../scenes/Preload';
 import { Shop } from '../scenes/Shop';
 import { CharacterSelection } from '../scenes/CharacterSelection';
 import { WeaponSelection } from '../scenes/WeaponSelection';
+import { Pause } from '../scenes/Pause';
 
 export const GameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -19,7 +20,7 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [Boot, Preload, Menu, CharacterSelection, WeaponSelection, Game, Shop],
+  scene: [Boot, Preload, Menu, CharacterSelection, WeaponSelection, Game, Shop, Pause],
   pixelArt: true, // Keep it crisp
   scale: {
     mode: Phaser.Scale.FIT,
