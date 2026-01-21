@@ -55,27 +55,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     
     currentHp: number = 20;
 
-    update(time: number, delta: number, cursors: Phaser.Types.Input.Keyboard.CursorKeys, wasd: any, enemies: Phaser.Physics.Arcade.Group) {
+    update(time: number, delta: number, moveInput: Phaser.Math.Vector2, enemies: Phaser.Physics.Arcade.Group) {
         // Reset velocity
         this.setVelocity(0);
 
         const speedVal = 200 * (1 + this.stats.speed / 100);
 
-        if (cursors.left.isDown || wasd.A.isDown) {
-            this.setVelocityX(-speedVal);
-        } else if (cursors.right.isDown || wasd.D.isDown) {
-            this.setVelocityX(speedVal);
+        // moveInput is expected to be normalized or bounded to length 1
+        if (moveInput.lengthSq() > 0) {
+            this.setVelocity(moveInput.x * speedVal, moveInput.y * speedVal);
         }
 
-        if (cursors.up.isDown || wasd.W.isDown) {
-            this.setVelocityY(-speedVal);
-        } else if (cursors.down.isDown || wasd.S.isDown) {
-            this.setVelocityY(speedVal);
-        }
-
-        // Normalize checks
+        // Normalize checks explicitly just in case input wasn't perfect, 
+        // though usually input vector is reliable. 
+        // Actually, if we use setVelocity with components, physics handles it, 
+        // but diagonal movement might need normalization if input was (1,1).
+        // Let's assume inputVector IS the direction.
+        
         if (this.body?.velocity) {
-             this.body.velocity.normalize().scale(speedVal);
+             // Ensure we don't exceed max speed if Input was > 1
+             if (this.body.velocity.length() > speedVal) {
+                this.body.velocity.normalize().scale(speedVal);
+             }
         }
 
         // Update Weapons

@@ -21,9 +21,9 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     }
   },
   scene: [Boot, Preload, Menu, CharacterSelection, WeaponSelection, Game, Shop, Pause],
-  pixelArt: true, // Keep it crisp
+  pixelArt: false,
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH
   }
 };

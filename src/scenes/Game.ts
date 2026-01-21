@@ -10,6 +10,7 @@ import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { CHARACTERS } from '../data/characters';
 import { EnemyStats, RunState } from '../types';
 import { StatManager } from '../systems/StatManager';
+import Joystick from '../ui/Joystick';
 
 export class Game extends Scene {
     private player!: Player;
@@ -20,6 +21,9 @@ export class Game extends Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
     
+    // Joystick
+    private joystick!: Joystick;
+
     private spawnTimer: number = 0;
     private waveTimer: number = 0;
     private waveDuration: number = 30 * 1000; // 30s
@@ -182,6 +186,8 @@ export class Game extends Scene {
             .setScrollFactor(0);
         this.goldText = this.add.text(100, 680, 'Gold: 0', { fontSize: '24px', color: '#ffD700' })
             .setScrollFactor(0);
+            
+        this.joystick = new Joystick(this);
     }
 
     updateUI() {
@@ -196,7 +202,30 @@ export class Game extends Scene {
     update(time: number, delta: number) {
         if (!this.isRunActive || !this.player.active) return;
         
-        this.player.update(time, delta, this.cursors, this.wasd, this.enemies);
+        // Calculate Input Vector from Keyboard OR Joystick
+        let moveInput = new Phaser.Math.Vector2(0, 0);
+
+        if (this.cursors.left.isDown || this.wasd.A.isDown) {
+            moveInput.x = -1;
+        } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+            moveInput.x = 1;
+        }
+
+        if (this.cursors.up.isDown || this.wasd.W.isDown) {
+            moveInput.y = -1;
+        } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+            moveInput.y = 1;
+        }
+        
+        // Normalize keyboard input
+        if (moveInput.lengthSq() > 0) {
+            moveInput.normalize();
+        } else if (this.joystick.isRunning()) {
+            // Use Joystick if no keyboard input
+            moveInput.copy(this.joystick.getVector());
+        }
+        
+        this.player.update(time, delta, moveInput, this.enemies);
 
         // Spawning logic
         this.spawnTimer += delta;
