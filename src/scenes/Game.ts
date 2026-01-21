@@ -1,5 +1,8 @@
 import { Scene } from 'phaser';
 import { Player } from '../objects/Player';
+import { Miku } from '../objects/characters/Miku';
+import { Osaka } from '../objects/characters/Osaka';
+import { Teto } from '../objects/characters/Teto';
 import { Enemy } from '../objects/Enemy';
 import { Projectile } from '../objects/Projectile';
 import { Pickup } from '../objects/Pickup';
@@ -57,7 +60,14 @@ export class Game extends Scene {
         const character = CHARACTERS.find(c => c.id === this.runState.characterId);
         const spriteKey = character ? character.spriteKey : 'teto';
         
-        this.player = new Player(this, 1000, 1000, spriteKey);
+        if (this.runState.characterId === 'miku') {
+             this.player = new Miku(this, 1000, 1000, spriteKey);
+        } else if (this.runState.characterId === 'osaka') {
+             this.player = new Osaka(this, 1000, 1000, spriteKey);
+        } else {
+             this.player = new Teto(this, 1000, 1000, spriteKey);
+        }
+
         this.player.setDepth(20);
         this.player.stats = { ...this.runState.stats };
         // ALWAYS START FULL HP
@@ -223,10 +233,48 @@ export class Game extends Scene {
         const enemy = obj2 as Enemy;
         
         if (enemy.active) {
+            // Player takes damage and triggers hooks (e.g. miku beam)
             player.takeDamage(enemy.damage);
+            
             const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
             enemy.x -= Math.cos(angle) * 10;
             enemy.y -= Math.sin(angle) * 10;
+        }
+    }
+
+    fireCounterBeam(player: Player, _targetData: {x: number, y: number}) {
+        // Find nearest enemy if the one hitting us is gone? Or just fire at the angle of impact?
+        // Let's fire at nearest enemy.
+        let target: any = null;
+        let minDist = 1000;
+        
+        this.enemies.getChildren().forEach(child => {
+            const e = child as any;
+            if (!e.active) return;
+            const d = Phaser.Math.Distance.Between(player.x, player.y, e.x, e.y);
+            if (d < minDist) {
+                minDist = d;
+                target = e;
+            }
+        });
+
+        if (target) {
+            const angle = Phaser.Math.Angle.Between(player.x, player.y, target.x, target.y);
+            
+            // Constructor: scene, x, y, texture, damage, duration, knockback, pierce, group
+            const dmg = (this.runState.stats.rangedDamage || 0); // 100% Ranged Damage
+            const proj = new Projectile(this, player.x, player.y, 'bullet', dmg, 2000, 10, 99);
+            
+            // Hacky manual velocity set because Projectile constructor might expect just basic setup?
+            // Actually Projectile doesn't set velocity in constructor shown above.
+            // We need to set it.
+            this.physics.velocityFromRotation(angle, 800, proj.body!.velocity);
+            proj.setRotation(angle);
+
+            // Visual for Beam? Make it faster/larger?
+            proj.setScale(2, 0.5); 
+            proj.setTint(0x39c5bb); // Miku Teal
+            this.projectiles.add(proj);
         }
     }
 
@@ -259,19 +307,8 @@ export class Game extends Scene {
         this.runState.currency += pickup.value;
         this.runState.xp += pickup.value;
         
-        if (pickup.type === 'Material') {
-             if (this.runState.characterId === 'osaka') {
-                 // Try play osaka sound if loaded
-                 if (this.cache.audio.exists('osaka-mp3')) {
-                    this.sound.play('osaka-mp3', { volume: 0.8 });
-                 } else {
-                    console.warn('Osaka audio missing, fallback to teto');
-                    this.sound.play('teto', { volume: 0.8 });
-                 }
-             } else {
-                 this.sound.play('teto', { volume: 0.8 });
-             }
-        }
+        // Delegate sound/effects to player instance
+        this.player.onCollect(pickup);
         
         pickup.destroy();
     }

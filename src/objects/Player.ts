@@ -6,7 +6,7 @@ import { StatManager } from '../systems/StatManager';
 export class Player extends Phaser.Physics.Arcade.Sprite {
     stats: Record<StatType, number>;
     weapons: WeaponInstance[] = [];
-    private healthBar: Phaser.GameObjects.Graphics;
+    private readonly healthBar: Phaser.GameObjects.Graphics;
 
     constructor(scene: Scene, x: number, y: number, texture: string = 'teto') {
         super(scene, x, y, texture);
@@ -51,9 +51,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     currentHp: number = 20;
 
     update(time: number, delta: number, cursors: Phaser.Types.Input.Keyboard.CursorKeys, wasd: any, enemies: Phaser.Physics.Arcade.Group) {
-        // Movement
-        // const speed = this.stats.speed * 3 + 200; 
-        
         // Reset velocity
         this.setVelocity(0);
 
@@ -115,11 +112,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // For now, just pile them up or implement offset logic in WeaponInstance
     }
 
-    takeDamage(amount: number) {
+    takeDamage(amount: number): boolean {
         // Armor reduction: Damage * (100 / (100 + Armor)) approx formula
-        // Common formula: dmg = dmg * 15 / (15 + armor) ? 
-        // Brotato logic: Damage reduction = armor / (armor + 15).
-        // Let's use simple logic: Damage - armor (min 1) or percentage
         
         // If armor is positive: damage reduction % = (armor / (armor + 15))
         let damage = amount;
@@ -135,14 +129,27 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (Math.random() * 100 < this.stats.dudge) {
             // Dodged!
             this.showFloatingText('Dodge!');
-            return;
+            return false;
         }
 
         this.currentHp -= damage;
         this.showFloatingText(`-${Math.floor(damage)}`, '#ff0000');
         
+        this.onDamageTaken(damage);
+
         if (this.currentHp <= 0) {
             this.scene.events.emit('player-dead');
+        }
+        return true; // Damage Taken
+    }
+
+    // Virtual
+    protected onDamageTaken(_amount: number) {}
+
+    // Virtual
+    public onCollect(pickup: any) {
+        if (pickup.type === 'Material') {
+             this.scene.sound.play('teto-mp3', { volume: 0.8 });
         }
     }
 

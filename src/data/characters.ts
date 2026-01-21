@@ -18,5 +18,14 @@ export const CHARACTERS: Character[] = [
         startingStats: { maxHp: 10 },
         startingWeaponId: 'pistol',
         passivesDisplay: ['+2 Dumbness/HP', 'Dumbness->Dodge']
+    },
+    {
+        id: 'miku',
+        name: 'Miku',
+        description: 'Fires a beam when taking damage.',
+        spriteKey: 'miku',
+        startingStats: { rangedDamage: 15 },
+        startingWeaponId: 'pistol', // Or 'leek' if we had it
+        passivesDisplay: ['+15 Ranged Dmg', 'Counter-Attack Beam']
     }
 ];
