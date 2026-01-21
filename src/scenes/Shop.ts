@@ -5,6 +5,7 @@ import { ITEMS, WEAPON_POOL } from '../data/items';
 export class Shop extends Scene {
     private runState!: RunState;
     private shopItems: (Item | Weapon | null)[] = [];
+    private shopPrices: (number | null)[] = [null, null, null, null];
     private locks: boolean[] = [false, false, false, false];
     
     // UI
@@ -25,20 +26,32 @@ export class Shop extends Scene {
         if (!this.runState.shopState) {
             this.runState.shopState = {
                 itemIds: [null, null, null, null],
-                locks: [false, false, false, false]
+                locks: [false, false, false, false],
+                prices: [null, null, null, null]
             };
         }
 
         // Restore State
         this.locks = [...this.runState.shopState.locks];
+        this.shopPrices = this.runState.shopState.prices ? [...this.runState.shopState.prices] : [null, null, null, null];
         
         // Restore Items from IDs
-        this.shopItems = this.runState.shopState.itemIds.map(id => {
-            if (!id) return null;
+        this.shopItems = this.runState.shopState.itemIds.map((id, index) => {
+            if (!id) {
+                this.shopPrices[index] = null; // Ensure consistency
+                return null;
+            }
             const item = ITEMS.find(i => i.id === id);
             if (item) return item;
             const wep = WEAPON_POOL.find(w => w.id === id);
             return wep || null;
+        });
+        
+        // Data fix: If we have an item but no price (e.g. valid load but missing price), calc it
+        this.shopItems.forEach((item, i) => {
+             if (item && this.shopPrices[i] === null) {
+                 this.shopPrices[i] = this.calculatePrice(item.basePrice);
+             }
         });
 
         this.itemContainers = [];
@@ -48,20 +61,30 @@ export class Shop extends Scene {
         this.createUI();
         
         // Initial roll only if empty (first time) or force reroll logic? 
-        // Actually, if we just finished a wave, we usually want a FRESH shop unless locked.
-        // But if we have persistence, we rely on what was saved.
-        // If the shop is completely empty (all nulls) and not locked, we should reroll.
-        // BUT: When coming from Game, we want a free Reroll. 
         // Logic: On entering shop, if it's a "New Visit" (implied by create), we should Reroll the non-locked slots.
         
-        // To detect "New Visit vs Reload", we can rely on whether the slots are all null.
-        // But what if we bought everything?
-        // Let's assume we always trigger a free reroll on entry, which respects locks?
-        // Yes, that's standard.
         this.reroll(true);
         this.saveGame();
     }
 
+    calculatePrice(basePrice: number): number {
+        const wave = this.runState.wave;
+        // Scale item prices with wave count. (Price scaling > Range scaling)
+        // Base Price factor: +10% per wave
+        const wavePriceFactor = 1 + (wave * 0.10); 
+        
+        // Range scale: +5% per wave
+        const rangeBase = 5;
+        const rangeFactor = 1 + (wave * 0.05);
+        const range = Math.floor(rangeBase * rangeFactor);
+        
+        // Random offset between -range and +range
+        const offset = Phaser.Math.Between(-range, range);
+        
+        let finalPrice = Math.floor((basePrice * wavePriceFactor) + offset);
+        return Math.max(1, finalPrice);
+    }
+    
     saveGame() {
         // Simple save to single slot for now
         localStorage.setItem('broteto_save_1', JSON.stringify({
@@ -82,6 +105,7 @@ export class Shop extends Scene {
             if (!this.locks[i]) {
                 const randomItem = pool[Math.floor(Math.random() * pool.length)];
                 this.shopItems[i] = randomItem;
+                this.shopPrices[i] = this.calculatePrice(randomItem.basePrice);
             }
         }
         
@@ -95,6 +119,7 @@ export class Shop extends Scene {
         if (!this.runState.shopState) return;
         this.runState.shopState.itemIds = this.shopItems.map(i => i ? i.id : null);
         this.runState.shopState.locks = [...this.locks];
+        this.runState.shopState.prices = [...this.shopPrices];
     }
 
 
@@ -109,15 +134,17 @@ export class Shop extends Scene {
 
     buyItem(index: number) {
         const item = this.shopItems[index];
-        if (!item) return;
+        const price = this.shopPrices[index];
+        
+        if (!item || price === null) return;
         
         if ((item as any).weaponStats && this.runState.weapons.length >= 12) {
             // Limit reached
             return;
         }
 
-        if (this.runState.currency >= item.basePrice) {
-            this.runState.currency -= item.basePrice;
+        if (this.runState.currency >= price) {
+            this.runState.currency -= price;
             
             // Add to inventory/stats
             if ((item as any).weaponStats) { // Duck typing check
@@ -134,6 +161,7 @@ export class Shop extends Scene {
 
             // Mark sold
             this.shopItems[index] = null; 
+            this.shopPrices[index] = null;
             this.locks[index] = false; 
             
             // Sync
@@ -259,13 +287,14 @@ export class Shop extends Scene {
         this.itemContainers.forEach((container, i) => {
             container.removeAll(true);
             const item = this.shopItems[i];
+            const price = this.shopPrices[i];
             
             // Background
             const bg = this.add.rectangle(0, 0, 300, 200, 0x222222);
             bg.setStrokeStyle(2, this.locks[i] ? 0xff0000 : 0x000000);
             container.add(bg);
 
-            if (item) {
+            if (item && price !== null) {
                 // Name
                 const name = this.add.text(0, -60, item.name, { fontSize: '22px', fontStyle: 'bold', color: '#d0021b' }).setOrigin(0.5);
                 container.add(name);
@@ -279,8 +308,8 @@ export class Shop extends Scene {
                 container.add(tags);
 
                 // Buy Button
-                const canAfford = this.runState.currency >= item.basePrice;
-                const buyBtn = this.add.text(0, 60, `Buy ${item.basePrice}`, {
+                const canAfford = this.runState.currency >= price;
+                const buyBtn = this.add.text(0, 60, `Buy ${price}`, {
                     fontSize: '24px', backgroundColor: canAfford ? '#008000' : '#444444', padding: { x:10, y:5 }
                 }).setOrigin(0.5).setInteractive({ useHandCursor: true });
                 
