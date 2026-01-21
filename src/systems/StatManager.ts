@@ -46,6 +46,16 @@ export class StatManager {
             });
         });
 
+        // Osaka Special Passive
+        if (character && character.id === 'osaka') {
+            const dumbness = stats.maxHp * 2;
+            // Hyperbolic scale to 60. k=50 for "quick start"
+            // At 10 HP -> 20 Dumbness -> (60*20)/(70) = 17%
+            // At 50 HP -> 100 Dumbness -> (60*100)/(150) = 40%
+            const dodgeOffset = (60 * dumbness) / (dumbness + 50);
+            stats.dudge += dodgeOffset;
+        }
+
         return stats;
     }
 

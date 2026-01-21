@@ -9,9 +9,11 @@ export class Preload extends Scene {
         console.log('Preload started');
         // Load Assets
         this.load.image('teto', 'assets/teto.png');
+        this.load.image('osaka', 'assets/osaka.png'); // Placeholder logic will handle if missing
         
         // Audio
-        this.load.audio('teto-wav', 'assets/sounds/teto-wav.mp3');
+        this.load.audio('teto', 'assets/sounds/teto.mp3');
+        this.load.audio('osaka-mp3', 'assets/sounds/osaka.mp3'); 
         this.load.audio('gunshot', 'assets/sounds/gunshot.mp3');
 
         // Create a basic loading bar
@@ -41,6 +43,15 @@ export class Preload extends Scene {
             gfx.fillStyle(0xd0021b);
             gfx.fillCircle(16, 16, 16);
             gfx.generateTexture('teto', 32, 32);
+            gfx.destroy();
+        }
+        
+        // Osaka Fallback
+        if (!this.textures.exists('osaka')) {
+            const gfx = this.make.graphics({ x: 0, y: 0 });
+            gfx.fillStyle(0xffff00); // Yellow
+            gfx.fillCircle(16, 16, 16);
+            gfx.generateTexture('osaka', 32, 32);
             gfx.destroy();
         }
 

@@ -8,8 +8,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     weapons: WeaponInstance[] = [];
     private healthBar: Phaser.GameObjects.Graphics;
 
-    constructor(scene: Scene, x: number, y: number) {
-        super(scene, x, y, 'teto');
+    constructor(scene: Scene, x: number, y: number, texture: string = 'teto') {
+        super(scene, x, y, texture);
         scene.add.existing(this);
         scene.physics.add.existing(this);
         

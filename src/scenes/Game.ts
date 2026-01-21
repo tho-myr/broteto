@@ -54,7 +54,10 @@ export class Game extends Scene {
         this.pickups = this.physics.add.group({ runChildUpdate: true });
         
         // Player Init
-        this.player = new Player(this, 1000, 1000);
+        const character = CHARACTERS.find(c => c.id === this.runState.characterId);
+        const spriteKey = character ? character.spriteKey : 'teto';
+        
+        this.player = new Player(this, 1000, 1000, spriteKey);
         this.player.setDepth(20);
         this.player.stats = { ...this.runState.stats };
         // ALWAYS START FULL HP
@@ -257,7 +260,17 @@ export class Game extends Scene {
         this.runState.xp += pickup.value;
         
         if (pickup.type === 'Material') {
-             this.sound.play('teto-wav', { volume: 0.8 });
+             if (this.runState.characterId === 'osaka') {
+                 // Try play osaka sound if loaded
+                 if (this.cache.audio.exists('osaka-mp3')) {
+                    this.sound.play('osaka-mp3', { volume: 0.8 });
+                 } else {
+                    console.warn('Osaka audio missing, fallback to teto');
+                    this.sound.play('teto', { volume: 0.8 });
+                 }
+             } else {
+                 this.sound.play('teto', { volume: 0.8 });
+             }
         }
         
         pickup.destroy();

@@ -30,7 +30,7 @@ export class CharacterSelection extends Scene {
              container.add(bg);
              
              // Image (Small)
-             const img = this.add.image(0, 0, 'teto').setDisplaySize(60, 60); // Use teto for everything for now if unique assets missing
+             const img = this.add.image(0, 0, _char.spriteKey || 'teto').setDisplaySize(60, 60); 
              container.add(img);
              
              bg.on('pointerdown', () => {
@@ -78,7 +78,7 @@ export class CharacterSelection extends Scene {
         container.setName('detailsContainer');
 
         // Big Image
-        const bigImg = this.add.image(-200, 0, 'teto').setDisplaySize(200, 200);
+        const bigImg = this.add.image(-200, 0, char.spriteKey || 'teto').setDisplaySize(200, 200);
         container.add(bigImg);
         
         // Name
