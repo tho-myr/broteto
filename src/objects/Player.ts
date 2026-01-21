@@ -7,6 +7,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     stats: Record<StatType, number>;
     weapons: WeaponInstance[] = [];
     private readonly healthBar: Phaser.GameObjects.Graphics;
+    private isInvulnerable: boolean = false;
+    private invulnerabilityDuration: number = 150; 
 
     constructor(scene: Scene, x: number, y: number, texture: string = 'teto') {
         super(scene, x, y, texture);
@@ -23,11 +25,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const startScaleX = this.scaleX;
         const startScaleY = this.scaleY;
 
-        // Visual radius is roughly 37.5 for 75px, set physics body radius (~30 to be forgiving)
-        this.setCircle(30);
-        // Center the circle offset. 75x75 sprite.
-        // Circle d=60. Offset needed to center it. (75-60)/2 = 7.5
-        this.setOffset(7.5, 7.5);
+        // Dynamic Physics Body Sizing
+        // Calculate radius based on original texture size to ensure correct scaling
+        // We want the hitbox to be about 70% of the visible sprite width
+        const radius = (this.width * 0.35); // 0.35 radius * 2 = 0.7 diameter
+        const offsetX = (this.width - (radius * 2)) / 2;
+        const offsetY = (this.height - (radius * 2)) / 2;
+        
+        this.setCircle(radius, offsetX, offsetY);
 
         this.setCollideWorldBounds(true);
         this.stats = StatManager.getBaseStats();
@@ -113,6 +118,9 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
 
     takeDamage(amount: number): boolean {
+        // Invulnerability Check
+        if (this.isInvulnerable) return false;
+
         // Armor reduction: Damage * (100 / (100 + Armor)) approx formula
         
         // If armor is positive: damage reduction % = (armor / (armor + 15))
@@ -136,6 +144,16 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.showFloatingText(`-${Math.floor(damage)}`, '#ff0000');
         
         this.onDamageTaken(damage);
+        
+        // Trigger Invulnerability
+        this.isInvulnerable = true;
+        this.setAlpha(0.6);
+        this.scene.time.delayedCall(this.invulnerabilityDuration, () => {
+            if (this.active) { // Safety check
+                this.isInvulnerable = false;
+                this.setAlpha(1);
+            }
+        });
 
         if (this.currentHp <= 0) {
             this.scene.events.emit('player-dead');
