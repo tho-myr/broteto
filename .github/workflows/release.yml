@@ -1,0 +1,119 @@
+name: Release Generator
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          mode: "COMMIT"
+          # Configuration to parse gitmojis from commit messages
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}",
+              "categories": [
+                {
+                  "title": "## ✨ Features",
+                  "labels": ["feat", "feature"],
+                  "key": "features",
+                  "rules": [
+                    { "pattern": "^(:sparkles:|✨)", "flags": "m" },
+                    { "pattern": "^feat", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## 🐛 Bug Fixes",
+                  "labels": ["fix", "bug"],
+                  "key": "fixes",
+                  "rules": [
+                    { "pattern": "^(:bug:|🐛)", "flags": "m" },
+                    { "pattern": "^(:ambulance:|🚑)", "flags": "m" },
+                    { "pattern": "^fix", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## ♻️ Refactoring",
+                  "labels": ["refactor"],
+                  "key": "refactor",
+                  "rules": [
+                    { "pattern": "^(:recycle:|♻️)", "flags": "m" },
+                    { "pattern": "^(:hammer:|🔨)", "flags": "m" },
+                    { "pattern": "^refactor", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## 💄 Style & UI",
+                  "labels": ["style", "ui"],
+                  "key": "style",
+                  "rules": [
+                    { "pattern": "^(:lipstick:|💄)", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## 📦 Dependencies",
+                  "labels": ["deps", "dependencies"],
+                  "key": "dependencies",
+                  "rules": [
+                    { "pattern": "^(:arrow_up:|⬆️)", "flags": "m" },
+                    { "pattern": "^(:package:|📦)", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## 📝 Documentation",
+                  "labels": ["docs"],
+                  "key": "docs",
+                  "rules": [
+                    { "pattern": "^(:memo:|📝)", "flags": "m" },
+                    { "pattern": "^docs", "flags": "m" }
+                  ]
+                },
+                 {
+                  "title": "## 🔧 Chore & Config",
+                  "labels": ["chore"],
+                  "key": "chore",
+                  "rules": [
+                    { "pattern": "^(:wrench:|🔧)", "flags": "m" },
+                    { "pattern": "^chore", "flags": "m" }
+                  ]
+                },
+                {
+                  "title": "## 🧱 Other Changes",
+                  "labels": ["other"],
+                  "key": "other",
+                  "rules": [
+                    { "pattern": ".", "flags": "m" }
+                  ]
+                }
+              ],
+              "pr_template": "- #{{TITLE}} @#{{AUTHOR}}",
+              "empty_template": "- No changes found",
+              "label_extractor": [],
+              "transformers": [],
+              "sort": {
+                  "order": "ASC",
+                  "on": "date"
+              },
+              "max_commits": 1000
+            }
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: ${{ steps.changelog.outputs.changelog }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: false
+          draft: false
