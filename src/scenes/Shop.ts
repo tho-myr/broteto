@@ -127,7 +127,7 @@ export class Shop extends Scene {
         if (this.runState.currency >= this.runState.rerollPrice) {
              this.runState.currency -= this.runState.rerollPrice;
              this.runState.rerollPrice += 1; // Price increase
-             this.reroll();
+             this.reroll(true);
              this.updateCurrencyUI();
         }
     }
