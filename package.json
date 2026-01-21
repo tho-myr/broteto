@@ -15,6 +15,6 @@
   "dependencies": {
     "phaser": "^3.80.0",
     "uuid": "^9.0.1",
-    "@types/uuid": "^9.0.8"
+    "@types/uuid": "^11.0.0"
   }
 }
