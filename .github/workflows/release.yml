@@ -8,6 +8,8 @@ on:
 jobs:
   build_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -24,15 +26,15 @@ jobs:
           # Configuration to parse gitmojis from commit messages
           configurationJson: |
             {
-              "template": "#{{CHANGELOG}}",
+              "template": "#{{CHANGELOG}}\n\n## 🧱 Other Changes\n\n#{{UNCATEGORIZED}}",
               "categories": [
                 {
                   "title": "## ✨ Features",
                   "labels": ["feat", "feature"],
                   "key": "features",
                   "rules": [
-                    { "pattern": "^(:sparkles:|✨)", "flags": "m" },
-                    { "pattern": "^feat", "flags": "m" }
+                    { "pattern": "^\\s*(:sparkles:|✨)", "on_property": "title" },
+                    { "pattern": "^\\s*(feat|feature|add|new|create)", "flags": "i", "on_property": "title" }
                   ]
                 },
                 {
@@ -40,9 +42,8 @@ jobs:
                   "labels": ["fix", "bug"],
                   "key": "fixes",
                   "rules": [
-                    { "pattern": "^(:bug:|🐛)", "flags": "m" },
-                    { "pattern": "^(:ambulance:|🚑)", "flags": "m" },
-                    { "pattern": "^fix", "flags": "m" }
+                    { "pattern": "^\\s*(:bug:|🐛|:ambulance:|🚑)", "on_property": "title" },
+                    { "pattern": "^\\s*(fix|bug|resolve|patch|hotfix)", "flags": "i", "on_property": "title" }
                   ]
                 },
                 {
@@ -50,9 +51,8 @@ jobs:
                   "labels": ["refactor"],
                   "key": "refactor",
                   "rules": [
-                    { "pattern": "^(:recycle:|♻️)", "flags": "m" },
-                    { "pattern": "^(:hammer:|🔨)", "flags": "m" },
-                    { "pattern": "^refactor", "flags": "m" }
+                    { "pattern": "^\\s*(:recycle:|♻️|:hammer:|🔨)", "on_property": "title" },
+                    { "pattern": "^\\s*(refactor|update|change|move|remove|delete|clean)", "flags": "i", "on_property": "title" }
                   ]
                 },
                 {
@@ -60,7 +60,8 @@ jobs:
                   "labels": ["style", "ui"],
                   "key": "style",
                   "rules": [
-                    { "pattern": "^(:lipstick:|💄)", "flags": "m" }
+                    { "pattern": "^\\s*(:lipstick:|💄)", "on_property": "title" },
+                    { "pattern": "^\\s*(style|ui|ux|design)", "flags": "i", "on_property": "title" }
                   ]
                 },
                 {
@@ -68,8 +69,8 @@ jobs:
                   "labels": ["deps", "dependencies"],
                   "key": "dependencies",
                   "rules": [
-                    { "pattern": "^(:arrow_up:|⬆️)", "flags": "m" },
-                    { "pattern": "^(:package:|📦)", "flags": "m" }
+                    { "pattern": "^\\s*(:arrow_up:|⬆️|:package:|📦)", "on_property": "title" },
+                    { "pattern": "^\\s*(bump|deps)", "flags": "i", "on_property": "title" }
                   ]
                 },
                 {
@@ -77,8 +78,8 @@ jobs:
                   "labels": ["docs"],
                   "key": "docs",
                   "rules": [
-                    { "pattern": "^(:memo:|📝)", "flags": "m" },
-                    { "pattern": "^docs", "flags": "m" }
+                    { "pattern": "^\\s*(:memo:|📝)", "on_property": "title" },
+                    { "pattern": "^\\s*(docs|doc|readme)", "flags": "i", "on_property": "title" }
                   ]
                 },
                  {
@@ -86,28 +87,26 @@ jobs:
                   "labels": ["chore"],
                   "key": "chore",
                   "rules": [
-                    { "pattern": "^(:wrench:|🔧)", "flags": "m" },
-                    { "pattern": "^chore", "flags": "m" }
-                  ]
-                },
-                {
-                  "title": "## 🧱 Other Changes",
-                  "labels": ["other"],
-                  "key": "other",
-                  "rules": [
-                    { "pattern": ".", "flags": "m" }
+                    { "pattern": "^\\s*(:wrench:|🔧)", "on_property": "title" },
+                    { "pattern": "^\\s*(chore|config|build|ci|test)", "flags": "i", "on_property": "title" }
                   ]
                 }
               ],
+              "label_extractor": [
+                {
+                  "pattern": "^\\s*Merge.*",
+                  "target": "ignore",
+                  "flags": "i",
+                  "on_property": "title"
+                }
+              ],
+              "ignore_labels": ["ignore"],
               "pr_template": "- #{{TITLE}} @#{{AUTHOR}}",
               "empty_template": "- No changes found",
-              "label_extractor": [],
-              "transformers": [],
               "sort": {
                   "order": "ASC",
-                  "on": "date"
-              },
-              "max_commits": 1000
+                  "on_property": "mergedAt"
+              }
             }
 
       - name: Create Release
