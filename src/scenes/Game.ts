@@ -177,16 +177,30 @@ export class Game extends Scene {
     }
 
     createUI() {
-        this.waveText = this.add.text(640, 20, `WAVE ${this.runState.wave}`, { fontSize: '24px', color: '#aaaaaa' })
+        const w = this.scale.width;
+        const h = this.scale.height;
+
+        this.waveText = this.add.text(w / 2, 20, `WAVE ${this.runState.wave}`, { fontSize: '24px', color: '#aaaaaa' })
             .setScrollFactor(0).setOrigin(0.5);
 
-        this.timerText = this.add.text(640, 50, '20', { fontSize: '40px', color: '#fff' })
+        this.timerText = this.add.text(w / 2, 50, '20', { fontSize: '40px', color: '#fff' })
             .setScrollFactor(0).setOrigin(0.5);
-        this.hpText = this.add.text(100, 650, 'HP: 20', { fontSize: '24px', color: '#0f0' })
+        
+        // Bottom Left UI
+        this.hpText = this.add.text(20, h - 80, 'HP: 20', { fontSize: '24px', color: '#0f0' })
             .setScrollFactor(0);
-        this.goldText = this.add.text(100, 680, 'Gold: 0', { fontSize: '24px', color: '#ffD700' })
+        this.goldText = this.add.text(20, h - 50, 'Gold: 0', { fontSize: '24px', color: '#ffD700' })
             .setScrollFactor(0);
+        
+        // Pause Button (Top Right)
+        const pauseBtn = this.add.text(w - 30, 30, 'II', { fontSize: '30px', color: '#fff', fontStyle: 'bold' })
+            .setScrollFactor(0).setOrigin(1, 0).setInteractive({ useHandCursor: true });
             
+        pauseBtn.on('pointerdown', () => {
+             this.scene.pause();
+             this.scene.launch('Pause');
+        });
+
         this.joystick = new Joystick(this);
     }
 

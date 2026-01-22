@@ -45,7 +45,11 @@ export class Menu extends Scene {
                     }).setOrigin(0.5).setInteractive();
 
                     continueBtn.on('pointerdown', () => {
-                        this.scene.start('Game', { runState: saveData.activeRun, newRun: false });
+                        if (saveData.activeRun.inShop) {
+                             this.scene.start('Shop', { runState: saveData.activeRun });
+                        } else {
+                             this.scene.start('Game', { runState: saveData.activeRun, newRun: false });
+                        }
                     });
                     
                     continueBtn.on('pointerover', () => continueBtn.setStyle({ color: '#ffff00' }));

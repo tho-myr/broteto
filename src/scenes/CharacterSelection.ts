@@ -15,12 +15,16 @@ export class CharacterSelection extends Scene {
         
         this.add.text(cx, 50, 'SELECT CHARACTER', { fontSize: '40px', color: '#fff' }).setOrigin(0.5);
 
-        // Character List (Bottom)
-        const startX = cx - ((CHARACTERS.length * 100) / 2); // Center items
-        
+        // Character List (Bottom - Centered)
+        // Only one row?
+        const itemSize = 100;
+        const totalWidth = CHARACTERS.length * itemSize;
+        const startX = cx - (totalWidth / 2) + (itemSize / 2); 
+        const listY = this.scale.height - 150; // Dynamic bottom position
+
         CHARACTERS.forEach((_char, idx) => {
-             const btnX = startX + idx * 100;
-             const btnY = 600;
+             const btnX = startX + idx * itemSize;
+             const btnY = listY;
              
              // Container for button
              const container = this.add.container(btnX, btnY);
@@ -42,7 +46,7 @@ export class CharacterSelection extends Scene {
         this.selectCharacter(0);
 
         // Confirm Button
-        const confirmBtn = this.add.text(cx, 680, 'CONFIRM', { 
+        const confirmBtn = this.add.text(cx, this.scale.height - 50, 'CONFIRM', { 
             fontSize: '32px', backgroundColor: '#006400', padding: { x: 30, y: 10 }
         }).setOrigin(0.5).setInteractive();
 
