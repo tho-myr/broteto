@@ -11,21 +11,21 @@ export const CHARACTERS: Character[] = [
         passivesDisplay: ['+10 Speed']
     },
     { 
-        id: 'teto_chimera', 
-        name: 'Chimera Teto', 
-        description: 'Strong but slow.', 
-        spriteKey: 'teto', // Placeholder
-        startingStats: { meleeDamage: 10, maxHp: 30, speed: -10 },
-        startingWeaponId: 'stick',
-        passivesDisplay: ['+10 Melee Dmg', '+10 HP', '-10 Speed']
-    },
-    { 
-        id: 'teto_sv', 
-        name: 'SynthV Teto', 
-        description: 'High Tech.', 
-        spriteKey: 'teto', // Placeholder
-        startingStats: { range: 50, critChance: 10 },
+        id: 'osaka', 
+        name: 'Osaka', 
+        description: 'OH MY GAH!', 
+        spriteKey: 'osaka',
+        startingStats: { maxHp: 10 },
         startingWeaponId: 'pistol',
-        passivesDisplay: ['+50 Range', '+10 Crit']
+        passivesDisplay: ['+2 Dumbness/HP', 'Dumbness->Dodge']
+    },
+    {
+        id: 'miku',
+        name: 'Miku',
+        description: 'Fires a beam when taking damage.',
+        spriteKey: 'miku',
+        startingStats: { rangedDamage: 15 },
+        startingWeaponId: 'pistol', // Or 'leek' if we had it
+        passivesDisplay: ['+15 Ranged Dmg', 'Counter-Attack Beam']
     }
 ];

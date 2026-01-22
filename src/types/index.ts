@@ -100,7 +100,9 @@ export interface RunState {
     shopState?: {
         itemIds: (string | null)[];
         locks: boolean[];
+        prices?: (number | null)[]; // Persisted Prices
     };
+    inShop?: boolean;
     rerollPrice: number;
 }
 

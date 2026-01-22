@@ -1,5 +1,8 @@
 import { Scene } from 'phaser';
 import { Player } from '../objects/Player';
+import { Miku } from '../objects/characters/Miku';
+import { Osaka } from '../objects/characters/Osaka';
+import { Teto } from '../objects/characters/Teto';
 import { Enemy } from '../objects/Enemy';
 import { Projectile } from '../objects/Projectile';
 import { Pickup } from '../objects/Pickup';
@@ -7,6 +10,7 @@ import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { CHARACTERS } from '../data/characters';
 import { EnemyStats, RunState } from '../types';
 import { StatManager } from '../systems/StatManager';
+import Joystick from '../ui/Joystick';
 
 export class Game extends Scene {
     private player!: Player;
@@ -17,6 +21,9 @@ export class Game extends Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
     
+    // Joystick
+    private joystick!: Joystick;
+
     private spawnTimer: number = 0;
     private waveTimer: number = 0;
     private waveDuration: number = 30 * 1000; // 30s
@@ -33,8 +40,6 @@ export class Game extends Scene {
     }
 
     create(data: { newRun: boolean, runState?: RunState }) {
-        console.log('Starting game, new run:', data.newRun);
-
         if (data.runState) {
             this.runState = data.runState;
         } else {
@@ -54,7 +59,17 @@ export class Game extends Scene {
         this.pickups = this.physics.add.group({ runChildUpdate: true });
         
         // Player Init
-        this.player = new Player(this, 1000, 1000);
+        const character = CHARACTERS.find(c => c.id === this.runState.characterId);
+        const spriteKey = character ? character.spriteKey : 'teto';
+        
+        if (this.runState.characterId === 'miku') {
+             this.player = new Miku(this, 1000, 1000, spriteKey);
+        } else if (this.runState.characterId === 'osaka') {
+             this.player = new Osaka(this, 1000, 1000, spriteKey);
+        } else {
+             this.player = new Teto(this, 1000, 1000, spriteKey);
+        }
+
         this.player.setDepth(20);
         this.player.stats = { ...this.runState.stats };
         // ALWAYS START FULL HP
@@ -122,6 +137,12 @@ export class Game extends Scene {
 
         // UI
         this.createUI();
+
+        // Pause Menu
+        this.input.keyboard?.on('keydown-ESC', () => {
+             this.scene.pause();
+             this.scene.launch('Pause');
+        });
     }
 
     createNewRun(): RunState {
@@ -156,15 +177,31 @@ export class Game extends Scene {
     }
 
     createUI() {
-        this.waveText = this.add.text(640, 20, `WAVE ${this.runState.wave}`, { fontSize: '24px', color: '#aaaaaa' })
+        const w = this.scale.width;
+        const h = this.scale.height;
+
+        this.waveText = this.add.text(w / 2, 20, `WAVE ${this.runState.wave}`, { fontSize: '24px', color: '#aaaaaa' })
             .setScrollFactor(0).setOrigin(0.5);
 
-        this.timerText = this.add.text(640, 50, '20', { fontSize: '40px', color: '#fff' })
+        this.timerText = this.add.text(w / 2, 50, '20', { fontSize: '40px', color: '#fff' })
             .setScrollFactor(0).setOrigin(0.5);
-        this.hpText = this.add.text(100, 650, 'HP: 20', { fontSize: '24px', color: '#0f0' })
+        
+        // Bottom Left UI
+        this.hpText = this.add.text(20, h - 80, 'HP: 20', { fontSize: '24px', color: '#0f0' })
             .setScrollFactor(0);
-        this.goldText = this.add.text(100, 680, 'Gold: 0', { fontSize: '24px', color: '#ffD700' })
+        this.goldText = this.add.text(20, h - 50, 'Gold: 0', { fontSize: '24px', color: '#ffD700' })
             .setScrollFactor(0);
+        
+        // Pause Button (Top Right)
+        const pauseBtn = this.add.text(w - 30, 30, 'II', { fontSize: '30px', color: '#fff', fontStyle: 'bold' })
+            .setScrollFactor(0).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+            
+        pauseBtn.on('pointerdown', () => {
+             this.scene.pause();
+             this.scene.launch('Pause');
+        });
+
+        this.joystick = new Joystick(this);
     }
 
     updateUI() {
@@ -179,12 +216,38 @@ export class Game extends Scene {
     update(time: number, delta: number) {
         if (!this.isRunActive || !this.player.active) return;
         
-        this.player.update(time, delta, this.cursors, this.wasd, this.enemies);
+        // Calculate Input Vector from Keyboard OR Joystick
+        let moveInput = new Phaser.Math.Vector2(0, 0);
+
+        if (this.cursors.left.isDown || this.wasd.A.isDown) {
+            moveInput.x = -1;
+        } else if (this.cursors.right.isDown || this.wasd.D.isDown) {
+            moveInput.x = 1;
+        }
+
+        if (this.cursors.up.isDown || this.wasd.W.isDown) {
+            moveInput.y = -1;
+        } else if (this.cursors.down.isDown || this.wasd.S.isDown) {
+            moveInput.y = 1;
+        }
+        
+        // Normalize keyboard input
+        if (moveInput.lengthSq() > 0) {
+            moveInput.normalize();
+        } else if (this.joystick.isRunning()) {
+            // Use Joystick if no keyboard input
+            moveInput.copy(this.joystick.getVector());
+        }
+        
+        this.player.update(time, delta, moveInput, this.enemies);
 
         // Spawning logic
         this.spawnTimer += delta;
-        const spawnInterval = Math.max(200, 1000 - (this.runState.wave * 50)); 
-        if (this.spawnTimer > spawnInterval) {
+        // Scale spawn rate: Starts at 800ms, decreases by 30ms per wave, cap at 60ms
+        const spawnInterval = Math.max(60, 800 - (this.runState.wave * 30)); 
+        
+        // Cap total enemies at 500
+        if (this.spawnTimer > spawnInterval && this.enemies.countActive() < 500) {
             this.spawnEnemy();
             this.spawnTimer = 0;
         }
@@ -205,9 +268,11 @@ export class Game extends Scene {
          const cy = Phaser.Math.Clamp(this.player.y + Math.sin(angle)*dist, 50, 1950);
          
          const stats: EnemyStats = {
-            hp: Math.floor((20 + (this.runState.wave * 5)) / 2),
+            // Health scales linearly with wave count
+            hp: 15 + (this.runState.wave * 8),
             damage: 2 + Math.floor(this.runState.wave / 2),
-            speed: 80 + (this.runState.wave * 2),
+            // Speed scales really slowly (0.5 per wave starting from 50)
+            speed: 50 + (this.runState.wave * 0.5),
             xpValue: 1 + Math.floor(this.runState.wave/5)
          };
          
@@ -220,10 +285,48 @@ export class Game extends Scene {
         const enemy = obj2 as Enemy;
         
         if (enemy.active) {
+            // Player takes damage and triggers hooks (e.g. miku beam)
             player.takeDamage(enemy.damage);
+            
             const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
             enemy.x -= Math.cos(angle) * 10;
             enemy.y -= Math.sin(angle) * 10;
+        }
+    }
+
+    fireCounterBeam(player: Player, _targetData: {x: number, y: number}) {
+        // Find nearest enemy if the one hitting us is gone? Or just fire at the angle of impact?
+        // Let's fire at nearest enemy.
+        let target: any = null;
+        let minDist = 1000;
+        
+        this.enemies.getChildren().forEach(child => {
+            const e = child as any;
+            if (!e.active) return;
+            const d = Phaser.Math.Distance.Between(player.x, player.y, e.x, e.y);
+            if (d < minDist) {
+                minDist = d;
+                target = e;
+            }
+        });
+
+        if (target) {
+            const angle = Phaser.Math.Angle.Between(player.x, player.y, target.x, target.y);
+            
+            // Constructor: scene, x, y, texture, damage, duration, knockback, pierce, group
+            const dmg = (this.runState.stats.rangedDamage || 0); // 100% Ranged Damage
+            const proj = new Projectile(this, player.x, player.y, 'bullet', dmg, 2000, 10, 99);
+            
+            // Hacky manual velocity set because Projectile constructor might expect just basic setup?
+            // Actually Projectile doesn't set velocity in constructor shown above.
+            // We need to set it.
+            this.physics.velocityFromRotation(angle, 800, proj.body!.velocity);
+            proj.setRotation(angle);
+
+            // Visual for Beam? Make it faster/larger?
+            proj.setScale(2, 0.5); 
+            proj.setTint(0x39c5bb); // Miku Teal
+            this.projectiles.add(proj);
         }
     }
 
@@ -256,9 +359,8 @@ export class Game extends Scene {
         this.runState.currency += pickup.value;
         this.runState.xp += pickup.value;
         
-        if (pickup.type === 'Material') {
-             this.sound.play('teto-wav', { volume: 0.8 });
-        }
+        // Delegate sound/effects to player instance
+        this.player.onCollect(pickup);
         
         pickup.destroy();
     }

@@ -38,6 +38,8 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     takeDamage(amount: number) {
         this.hp -= amount;
         
+        this.showDamageText(amount);
+
         // Flash white
         this.setTint(0xff0000);
         this.scene.time.delayedCall(100, () => this.clearTint());
@@ -48,6 +50,28 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
         if (this.hp <= 0) {
             this.die();
         }
+    }
+
+    showDamageText(amount: number) {
+        // Randomize X slightly to prevent perfect stacking
+        const rx = this.x + Phaser.Math.Between(-10, 10);
+        const t = this.scene.add.text(rx, this.y - 20, Math.floor(amount).toString(), { 
+            fontSize: '14px', 
+            color: '#fff', 
+            stroke: '#000', 
+            strokeThickness: 2,
+            fontFamily: 'Arial'
+        });
+        t.setDepth(30); // Higher than player(20) and enemy(10)
+        
+        this.scene.tweens.add({
+            targets: t,
+            y: t.y - 30,
+            alpha: 0,
+            duration: 600,
+            ease: 'Power1',
+            onComplete: () => t.destroy()
+        });
     }
 
     die() {

@@ -6,10 +6,12 @@ import { StatManager } from '../systems/StatManager';
 export class Player extends Phaser.Physics.Arcade.Sprite {
     stats: Record<StatType, number>;
     weapons: WeaponInstance[] = [];
-    private healthBar: Phaser.GameObjects.Graphics;
+    private readonly healthBar: Phaser.GameObjects.Graphics;
+    private isInvulnerable: boolean = false;
+    private invulnerabilityDuration: number = 150; 
 
-    constructor(scene: Scene, x: number, y: number) {
-        super(scene, x, y, 'teto');
+    constructor(scene: Scene, x: number, y: number, texture: string = 'teto') {
+        super(scene, x, y, texture);
         scene.add.existing(this);
         scene.physics.add.existing(this);
         
@@ -23,11 +25,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const startScaleX = this.scaleX;
         const startScaleY = this.scaleY;
 
-        // Visual radius is roughly 37.5 for 75px, set physics body radius (~30 to be forgiving)
-        this.setCircle(30);
-        // Center the circle offset. 75x75 sprite.
-        // Circle d=60. Offset needed to center it. (75-60)/2 = 7.5
-        this.setOffset(7.5, 7.5);
+        // Dynamic Physics Body Sizing
+        // Calculate radius based on original texture size to ensure correct scaling
+        // We want the hitbox to be about 70% of the visible sprite width
+        const radius = (this.width * 0.35); // 0.35 radius * 2 = 0.7 diameter
+        const offsetX = (this.width - (radius * 2)) / 2;
+        const offsetY = (this.height - (radius * 2)) / 2;
+        
+        this.setCircle(radius, offsetX, offsetY);
 
         this.setCollideWorldBounds(true);
         this.stats = StatManager.getBaseStats();
@@ -50,30 +55,28 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     
     currentHp: number = 20;
 
-    update(time: number, delta: number, cursors: Phaser.Types.Input.Keyboard.CursorKeys, wasd: any, enemies: Phaser.Physics.Arcade.Group) {
-        // Movement
-        // const speed = this.stats.speed * 3 + 200; 
-        
+    update(time: number, delta: number, moveInput: Phaser.Math.Vector2, enemies: Phaser.Physics.Arcade.Group) {
         // Reset velocity
         this.setVelocity(0);
 
         const speedVal = 200 * (1 + this.stats.speed / 100);
 
-        if (cursors.left.isDown || wasd.A.isDown) {
-            this.setVelocityX(-speedVal);
-        } else if (cursors.right.isDown || wasd.D.isDown) {
-            this.setVelocityX(speedVal);
+        // moveInput is expected to be normalized or bounded to length 1
+        if (moveInput.lengthSq() > 0) {
+            this.setVelocity(moveInput.x * speedVal, moveInput.y * speedVal);
         }
 
-        if (cursors.up.isDown || wasd.W.isDown) {
-            this.setVelocityY(-speedVal);
-        } else if (cursors.down.isDown || wasd.S.isDown) {
-            this.setVelocityY(speedVal);
-        }
-
-        // Normalize checks
+        // Normalize checks explicitly just in case input wasn't perfect, 
+        // though usually input vector is reliable. 
+        // Actually, if we use setVelocity with components, physics handles it, 
+        // but diagonal movement might need normalization if input was (1,1).
+        // Let's assume inputVector IS the direction.
+        
         if (this.body?.velocity) {
-             this.body.velocity.normalize().scale(speedVal);
+             // Ensure we don't exceed max speed if Input was > 1
+             if (this.body.velocity.length() > speedVal) {
+                this.body.velocity.normalize().scale(speedVal);
+             }
         }
 
         // Update Weapons
@@ -115,11 +118,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         // For now, just pile them up or implement offset logic in WeaponInstance
     }
 
-    takeDamage(amount: number) {
+    takeDamage(amount: number): boolean {
+        // Invulnerability Check
+        if (this.isInvulnerable) return false;
+
         // Armor reduction: Damage * (100 / (100 + Armor)) approx formula
-        // Common formula: dmg = dmg * 15 / (15 + armor) ? 
-        // Brotato logic: Damage reduction = armor / (armor + 15).
-        // Let's use simple logic: Damage - armor (min 1) or percentage
         
         // If armor is positive: damage reduction % = (armor / (armor + 15))
         let damage = amount;
@@ -135,14 +138,37 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         if (Math.random() * 100 < this.stats.dudge) {
             // Dodged!
             this.showFloatingText('Dodge!');
-            return;
+            return false;
         }
 
         this.currentHp -= damage;
         this.showFloatingText(`-${Math.floor(damage)}`, '#ff0000');
         
+        this.onDamageTaken(damage);
+        
+        // Trigger Invulnerability
+        this.isInvulnerable = true;
+        this.setAlpha(0.6);
+        this.scene.time.delayedCall(this.invulnerabilityDuration, () => {
+            if (this.active) { // Safety check
+                this.isInvulnerable = false;
+                this.setAlpha(1);
+            }
+        });
+
         if (this.currentHp <= 0) {
             this.scene.events.emit('player-dead');
+        }
+        return true; // Damage Taken
+    }
+
+    // Virtual
+    protected onDamageTaken(_amount: number) {}
+
+    // Virtual
+    public onCollect(pickup: any) {
+        if (pickup.type === 'Material') {
+             this.scene.sound.play('teto-mp3', { volume: 0.8 });
         }
     }
 
