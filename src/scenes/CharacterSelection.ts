@@ -1,7 +1,7 @@
-import { Scene } from 'phaser';
-import { CHARACTERS } from '../data/characters';
-import { StatManager } from '../systems/StatManager';
-import { Character } from '../types';
+import {Scene} from 'phaser';
+import {CHARACTERS} from '../data/characters';
+import {StatManager} from '../systems/StatManager';
+import {Character} from '../types';
 
 export class CharacterSelection extends Scene {
     private selectedCharIndex: number = 0;
@@ -24,17 +24,14 @@ export class CharacterSelection extends Scene {
 
         CHARACTERS.forEach((_char, idx) => {
              const btnX = startX + idx * itemSize;
-             const btnY = listY;
-             
-             // Container for button
-             const container = this.add.container(btnX, btnY);
+             const container = this.add.container(btnX, listY);
              
              // Background
              const bg = this.add.rectangle(0, 0, 80, 80, 0x333333).setInteractive();
              container.add(bg);
              
              // Image (Small)
-             const img = this.add.image(0, 0, _char.spriteKey || 'teto').setDisplaySize(60, 60); 
+             const img = this.add.image(0, 0, _char.spriteKey).setDisplaySize(60, 60);
              container.add(img);
              
              bg.on('pointerdown', () => {

@@ -4,8 +4,10 @@ import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { StatManager } from '../systems/StatManager';
 
 export class WeaponSelection extends Scene {
+
+    private readonly weapons: Weapon[] = [STARTER_WEAPON, PISTOL_WEAPON];
+
     private selectedCharacter!: Character;
-    private weapons: Weapon[] = [STARTER_WEAPON, PISTOL_WEAPON];
 
     constructor() {
         super('WeaponSelection');
@@ -19,33 +21,33 @@ export class WeaponSelection extends Scene {
 
         // Display Weapons
         const startY = 300;
-        
+
         this.weapons.forEach((w, idx) => {
              const y = startY + idx * 150;
-             
+
              const container = this.add.container(cx, y);
              // Size
              const bg = this.add.rectangle(0, 0, 500, 120, 0x444444).setInteractive();
              container.add(bg);
-             
+
              // Icon (Placeholder rect or text)
              const icon = this.add.rectangle(-200, 0, 80, 80, 0x888888);
              container.add(icon);
              const iconText = this.add.text(-200, 0, w.name.substring(0,2), { fontSize: '30px' }).setOrigin(0.5);
              container.add(iconText);
-             
+
              // Name
              const name = this.add.text(-120, -30, w.name, { fontSize: '24px', fontStyle: 'bold' });
              container.add(name);
-             
+
              // Desc
              const desc = this.add.text(-120, 10, w.description, { fontSize: '18px', color: '#ccc' });
              container.add(desc);
-             
+
              bg.on('pointerdown', () => {
                  this.startGame(w);
              });
-             
+
              bg.on('pointerover', () => bg.setFillStyle(0x666666));
              bg.on('pointerout', () => bg.setFillStyle(0x444444));
         });
@@ -62,7 +64,7 @@ export class WeaponSelection extends Scene {
         for(const k in char.startingStats) {
             const key = k as keyof typeof baseStats;
             if(char.startingStats[key]) {
-                baseStats[key] += char.startingStats[key]!;
+                baseStats[key] += char.startingStats[key];
             }
         }
 

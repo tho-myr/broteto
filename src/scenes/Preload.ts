@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import {CHARACTERS} from "../data/characters.ts";
 
 export class Preload extends Scene {
     constructor() {
@@ -7,15 +8,13 @@ export class Preload extends Scene {
 
     preload() {
         console.log('Preload started');
-        // Load Assets
-        this.load.image('teto', 'assets/teto.png');
-        this.load.image('osaka', 'assets/osaka.png'); 
-        this.load.image('miku', 'assets/miku.png');
+        CHARACTERS.forEach((char) => {
+            this.load.image(char.spriteKey, char.spriteLocation);
+            this.load.audio(char.materialCollectionSoundKey, char.materialCollectionSoundLocation);
+        })
 
-        // Audio
-        this.load.audio('teto-mp3', 'assets/sounds/teto.mp3');
-        this.load.audio('osaka-mp3', 'assets/sounds/osaka.mp3'); 
-        this.load.audio('miku-mp3', 'assets/sounds/miku.mp3'); // Miku sound
+        // Load background music
+        this.load.audio('bgm_bruh', 'assets/music/bruh.mp3');
         this.load.audio('gunshot', 'assets/sounds/gunshot.mp3');
 
         // Create a basic loading bar

@@ -1,14 +1,19 @@
 import { Scene } from 'phaser';
-import { StatType } from '../types';
+import {Character, StatType} from '../types';
 import { WeaponInstance } from './WeaponInstance';
 import { StatManager } from '../systems/StatManager';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
+
+    private readonly healthBar: Phaser.GameObjects.Graphics;
+    private readonly invulnerabilityDuration: number = 150;
+    public character?: Character;
+
+    private isInvulnerable: boolean = false;
+
     stats: Record<StatType, number>;
     weapons: WeaponInstance[] = [];
-    private readonly healthBar: Phaser.GameObjects.Graphics;
-    private isInvulnerable: boolean = false;
-    private invulnerabilityDuration: number = 150; 
+
 
     constructor(scene: Scene, x: number, y: number, texture: string = 'teto') {
         super(scene, x, y, texture);
@@ -144,8 +149,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.currentHp -= damage;
         this.showFloatingText(`-${Math.floor(damage)}`, '#ff0000');
         
-        this.onDamageTaken(damage);
-        
+        // Call character's onDamageTaken callback if it exists
+        if (this.character?.onDamageTaken) {
+            this.character.onDamageTaken(this, damage);
+        }
+
         // Trigger Invulnerability
         this.isInvulnerable = true;
         this.setAlpha(0.6);
@@ -162,13 +170,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         return true; // Damage Taken
     }
 
-    // Virtual
-    protected onDamageTaken(_amount: number) {}
 
     // Virtual
     public onCollect(pickup: any) {
-        if (pickup.type === 'Material') {
-             this.scene.sound.play('teto-mp3', { volume: 0.8 });
+        if (this.character?.onCollect) {
+            this.character.onCollect(this, pickup);
         }
     }
 

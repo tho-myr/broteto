@@ -1,8 +1,5 @@
 import { Scene } from 'phaser';
 import { Player } from '../objects/Player';
-import { Miku } from '../objects/characters/Miku';
-import { Osaka } from '../objects/characters/Osaka';
-import { Teto } from '../objects/characters/Teto';
 import { Enemy } from '../objects/Enemy';
 import { Projectile } from '../objects/Projectile';
 import { Pickup } from '../objects/Pickup';
@@ -60,15 +57,12 @@ export class Game extends Scene {
         
         // Player Init
         const character = CHARACTERS.find(c => c.id === this.runState.characterId);
-        const spriteKey = character ? character.spriteKey : 'teto';
-        
-        if (this.runState.characterId === 'miku') {
-             this.player = new Miku(this, 1000, 1000, spriteKey);
-        } else if (this.runState.characterId === 'osaka') {
-             this.player = new Osaka(this, 1000, 1000, spriteKey);
-        } else {
-             this.player = new Teto(this, 1000, 1000, spriteKey);
+        if (!character) {
+            throw new Error(`Character with id ${this.runState.characterId} not found`);
         }
+
+        this.player = character.createPlayer(this, 1000, 1000, character.spriteKey);
+        this.player.character = character;
 
         this.player.setDepth(20);
         this.player.stats = { ...this.runState.stats };
@@ -294,41 +288,6 @@ export class Game extends Scene {
         }
     }
 
-    fireCounterBeam(player: Player, _targetData: {x: number, y: number}) {
-        // Find nearest enemy if the one hitting us is gone? Or just fire at the angle of impact?
-        // Let's fire at nearest enemy.
-        let target: any = null;
-        let minDist = 1000;
-        
-        this.enemies.getChildren().forEach(child => {
-            const e = child as any;
-            if (!e.active) return;
-            const d = Phaser.Math.Distance.Between(player.x, player.y, e.x, e.y);
-            if (d < minDist) {
-                minDist = d;
-                target = e;
-            }
-        });
-
-        if (target) {
-            const angle = Phaser.Math.Angle.Between(player.x, player.y, target.x, target.y);
-            
-            // Constructor: scene, x, y, texture, damage, duration, knockback, pierce, group
-            const dmg = (this.runState.stats.rangedDamage || 0); // 100% Ranged Damage
-            const proj = new Projectile(this, player.x, player.y, 'bullet', dmg, 2000, 10, 99);
-            
-            // Hacky manual velocity set because Projectile constructor might expect just basic setup?
-            // Actually Projectile doesn't set velocity in constructor shown above.
-            // We need to set it.
-            this.physics.velocityFromRotation(angle, 800, proj.body!.velocity);
-            proj.setRotation(angle);
-
-            // Visual for Beam? Make it faster/larger?
-            proj.setScale(2, 0.5); 
-            proj.setTint(0x39c5bb); // Miku Teal
-            this.projectiles.add(proj);
-        }
-    }
 
     handleProjectileEnemyCollision(obj1: any, obj2: any) {
         const proj = obj1 as Projectile;
