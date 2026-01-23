@@ -2,7 +2,6 @@ import { Scene } from 'phaser';
 import { Character, RunState, Weapon } from '../types';
 import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { StatManager } from '../systems/StatManager';
-import { CHARACTERS } from '../data/characters';
 
 export class WeaponSelection extends Scene {
 
