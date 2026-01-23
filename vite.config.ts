@@ -6,6 +6,7 @@ export default defineConfig({
     assetsDir: 'assets',
   },
   server: {
-    host: true
+    host: true,
+    allowedHosts: ['localhost', 'broteto.netlify.app', 'devserver-develop--broteto.netlify.app']
   }
 });
