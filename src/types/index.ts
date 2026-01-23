@@ -60,9 +60,16 @@ export interface Character {
     name: string;
     description: string;
     spriteKey: string;
+    spriteLocation: string;
+    materialCollectionSoundKey: string;
+    materialCollectionSoundLocation: string;
     startingStats: Partial<Record<StatType, number>>;
-    startingWeaponId: string; // ID of default weapon
     passivesDisplay: string[];
+    // Factory function to create the player instance
+    createPlayer: (scene: any, x: number, y: number, spriteKey: string) => any;
+    // Optional callbacks for character-specific behavior
+    onCollect?: (player: any, pickup: any) => void;
+    onDamageTaken?: (player: any, damage: number) => void;
 }
 
 export interface EnemyStats {
@@ -70,16 +77,6 @@ export interface EnemyStats {
     speed: number;
     damage: number;
     xpValue: number;
-}
-
-export interface WaveConfig {
-    waveNumber: number;
-    duration: number; // seconds
-    enemies: {
-        enemyId: string;
-        rate: number; // spawn every X seconds or chance
-        minCount?: number;
-    }[];
 }
 
 // Save Data Structures
