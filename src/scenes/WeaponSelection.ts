@@ -2,12 +2,18 @@ import { Scene } from 'phaser';
 import { Character, RunState, Weapon } from '../types';
 import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { StatManager } from '../systems/StatManager';
+import { Button, InputModeManager } from '../ui/Button';
+import { GamepadManager } from '../systems/GamepadManager';
 
 export class WeaponSelection extends Scene {
 
     private readonly weapons: Weapon[] = [STARTER_WEAPON, PISTOL_WEAPON];
-
     private selectedCharacter!: Character;
+    private weaponButtons: Button[] = [];
+    private gamepadManager!: GamepadManager;
+    private selectedWeaponIdx: number = 0;
+    private inputCooldown: number = 0;
+    private cooldownDuration: number = 200;
 
     constructor() {
         super('WeaponSelection');
@@ -15,6 +21,10 @@ export class WeaponSelection extends Scene {
 
     create(data: { character: Character }) {
         this.selectedCharacter = data.character;
+        this.gamepadManager = new GamepadManager();
+        this.inputCooldown = 0;
+        this.selectedWeaponIdx = 0;
+
         const cx = this.cameras.main.centerX;
 
         this.add.text(cx, 100, 'SELECT STARTING WEAPON', { fontSize: '36px', color: '#fff' }).setOrigin(0.5);
@@ -25,32 +35,66 @@ export class WeaponSelection extends Scene {
         this.weapons.forEach((w, idx) => {
              const y = startY + idx * 150;
 
-             const container = this.add.container(cx, y);
-             // Size
-             const bg = this.add.rectangle(0, 0, 500, 120, 0x444444).setInteractive();
-             container.add(bg);
-
-             // Icon (Placeholder rect or text)
-             const icon = this.add.rectangle(-200, 0, 80, 80, 0x888888);
-             container.add(icon);
-             const iconText = this.add.text(-200, 0, w.name.substring(0,2), { fontSize: '30px' }).setOrigin(0.5);
-             container.add(iconText);
-
-             // Name
-             const name = this.add.text(-120, -30, w.name, { fontSize: '24px', fontStyle: 'bold' });
-             container.add(name);
-
-             // Desc
-             const desc = this.add.text(-120, 10, w.description, { fontSize: '18px', color: '#ccc' });
-             container.add(desc);
-
-             bg.on('pointerdown', () => {
-                 this.startGame(w);
+             const btn = new Button(this, {
+                 x: cx,
+                 y: y,
+                 width: 500,
+                 height: 120,
+                 text: `${w.name} - ${w.description}`,
+                 fontSize: '20px',
+                 onClick: () => this.startGame(w)
              });
-
-             bg.on('pointerover', () => bg.setFillStyle(0x666666));
-             bg.on('pointerout', () => bg.setFillStyle(0x444444));
+             btn.setNormalColor(0x444444);
+             this.weaponButtons.push(btn);
         });
+
+        this.selectWeapon(0);
+    }
+
+    selectWeapon(idx: number) {
+        this.selectedWeaponIdx = idx;
+        this.weaponButtons.forEach((btn, i) => {
+            if (i === idx) {
+                btn.highlight();
+            } else {
+                btn.unhighlight();
+            }
+        });
+    }
+
+    update(delta: number) {
+        // Detect gamepad input - switch to controller mode
+        if (this.gamepadManager.isConnected()) {
+            const dpad = this.gamepadManager.getDPadInput();
+            const leftStick = this.gamepadManager.getLeftStickInput();
+            if (dpad.y !== 0 || Math.abs(leftStick.y) > 0.5 || this.gamepadManager.isButtonDown('A')) {
+                InputModeManager.setMode('controller');
+            }
+        }
+
+        this.inputCooldown -= delta;
+        if (this.inputCooldown > 0) return;
+
+        // Handle D-pad/Left Stick for navigation
+        const dpad = this.gamepadManager.getDPadInput();
+        const leftStick = this.gamepadManager.getLeftStickInput();
+
+        let moveY = dpad.y;
+        if (Math.abs(leftStick.y) > 0.5) {
+            moveY = leftStick.y > 0 ? 1 : -1;
+        }
+
+        if (moveY !== 0) {
+            const newIdx = (this.selectedWeaponIdx + Math.sign(moveY) + this.weapons.length) % this.weapons.length;
+            this.selectWeapon(newIdx);
+            this.inputCooldown = this.cooldownDuration;
+        }
+
+        // Handle A button to confirm
+        if (this.gamepadManager.isButtonDown('A')) {
+            this.startGame(this.weapons[this.selectedWeaponIdx]);
+            this.inputCooldown = this.cooldownDuration;
+        }
     }
 
     startGame(startWeapon: Weapon) {

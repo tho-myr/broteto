@@ -7,6 +7,8 @@ import { STARTER_WEAPON, PISTOL_WEAPON } from '../data/items';
 import { CHARACTERS } from '../data/characters';
 import { EnemyStats, RunState } from '../types';
 import { StatManager } from '../systems/StatManager';
+import { GamepadManager } from '../systems/GamepadManager';
+import { InputModeManager } from '../ui/Button';
 import Joystick from '../ui/Joystick';
 
 export class Game extends Scene {
@@ -18,8 +20,10 @@ export class Game extends Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
     
-    // Joystick
+    // Joystick & Controller
     private joystick!: Joystick;
+    private gamepadManager!: GamepadManager;
+    private pauseCooldown: number = 0;
 
     private spawnTimer: number = 0;
     private waveTimer: number = 0;
@@ -47,7 +51,11 @@ export class Game extends Scene {
         this.isRunActive = true;
         this.waveTimer = 0;
         this.spawnTimer = 0; // Reset spawn timer
-        
+        this.pauseCooldown = 0;
+
+        // Initialize GamepadManager
+        this.gamepadManager = new GamepadManager();
+
         this.physics.world.setBounds(0, 0, 2000, 2000);
         this.add.tileSprite(1000, 1000, 2000, 2000, 'grid_tile');
 
@@ -191,8 +199,10 @@ export class Game extends Scene {
             .setScrollFactor(0).setOrigin(1, 0).setInteractive({ useHandCursor: true });
             
         pauseBtn.on('pointerdown', () => {
+             this.sound.play('press');
              this.scene.pause();
              this.scene.launch('Pause');
+             this.pauseCooldown = 500; // Set cooldown to prevent immediate close
         });
 
         this.joystick = new Joystick(this);
@@ -210,7 +220,24 @@ export class Game extends Scene {
     update(time: number, delta: number) {
         if (!this.isRunActive || !this.player.active) return;
         
-        // Calculate Input Vector from Keyboard OR Joystick
+        // Detect mouse/touch input - switch to mouse mode
+        const pointerIsDown = this.input.activePointer?.isDown;
+        const pointerMovement = this.input.activePointer?.movementX || this.input.activePointer?.movementY;
+        if (pointerIsDown || pointerMovement) {
+            InputModeManager.setMode('mouse');
+        }
+
+        // Update pause cooldown
+        this.pauseCooldown -= delta;
+
+        // Handle Controller START button for pause
+        if (this.pauseCooldown <= 0 && this.gamepadManager.isButtonDown('START')) {
+            this.scene.pause();
+            this.scene.launch('Pause');
+            this.pauseCooldown = 500; // 500ms cooldown
+        }
+
+        // Calculate Input Vector from Keyboard OR Joystick OR Gamepad
         let moveInput = new Phaser.Math.Vector2(0, 0);
 
         if (this.cursors.left.isDown || this.wasd.A.isDown) {
@@ -228,9 +255,16 @@ export class Game extends Scene {
         // Normalize keyboard input
         if (moveInput.lengthSq() > 0) {
             moveInput.normalize();
-        } else if (this.joystick.isRunning()) {
-            // Use Joystick if no keyboard input
-            moveInput.copy(this.joystick.getVector());
+        } else {
+            // Try gamepad analog stick if no keyboard input
+            const leftStick = this.gamepadManager.getLeftStickInput();
+            if (Math.abs(leftStick.x) > 0.1 || Math.abs(leftStick.y) > 0.1) {
+                moveInput.x = leftStick.x;
+                moveInput.y = leftStick.y;
+            } else if (this.joystick.isRunning()) {
+                // Use Joystick if no gamepad input
+                moveInput.copy(this.joystick.getVector());
+            }
         }
         
         this.player.update(time, delta, moveInput, this.enemies);

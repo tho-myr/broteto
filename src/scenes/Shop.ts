@@ -1,7 +1,17 @@
 import { Scene } from 'phaser';
 import { RunState, Item, Weapon, StatType } from '../types';
 import { ITEMS, WEAPON_POOL } from '../data/items';
+import { GamepadManager } from '../systems/GamepadManager';
+import { Button, InputModeManager } from '../ui/Button';
 import ScrollView from '../ui/ScrollView';
+
+interface ShopItemUI {
+    container: Phaser.GameObjects.Container;
+    bg: Phaser.GameObjects.Rectangle;
+    buyBtn?: Button;
+    lockBtn?: Button;
+    soldText?: Phaser.GameObjects.Text;
+}
 
 export class Shop extends Scene {
     private runState!: RunState;
@@ -11,11 +21,18 @@ export class Shop extends Scene {
     
     // UI
     private currencyText!: Phaser.GameObjects.Text;
-    private rerollBtn!: Phaser.GameObjects.Text;
-    private itemContainers: Phaser.GameObjects.Container[] = [];
-    
+    private rerollBtn!: Button;
+    private nextWaveBtn!: Button;
+    private shopItemsUI: ShopItemUI[] = [];
+
     private leftContainer!: ScrollView; // Inventory
     private rightContainer!: ScrollView; // Stats
+
+    // Controller
+    private gamepadManager!: GamepadManager;
+    private selectedItem: number = 0; // Currently selected shop item (0-3)
+    private inputCooldown: number = 0;
+    private cooldownDuration: number = 150;
 
     constructor() {
         super('Shop');
@@ -24,9 +41,12 @@ export class Shop extends Scene {
     create(data: { runState: RunState }) {
         this.runState = data.runState;
         
-        // Check if we are resuming a shop session (reload) or entering new (after wave)
-        // If coming from Game (endWave), 'inShop' should be false/undefined.
-        // If coming from Menu (Continue) after reloading in Shop, 'inShop' is true.
+        // Initialize GamepadManager
+        this.gamepadManager = new GamepadManager();
+        this.selectedItem = 0;
+        this.inputCooldown = 0;
+
+        // ...existing code...
         const resumingShopSession = !!this.runState.inShop;
 
         // Initialize Shop Persistence if missing
@@ -48,9 +68,6 @@ export class Shop extends Scene {
         // Restore Items from IDs
         this.shopItems = this.runState.shopState.itemIds.map((id) => {
             if (!id) {
-                // If it was sold/null in state, keep it null.
-                // However, do NOT wipe price if we are just initing, wait for reroll logic if needed.
-                // Actually if ID is null, price should be irrelevant unless we reroll.
                 return null;
             }
             const item = ITEMS.find(i => i.id === id);
@@ -59,30 +76,23 @@ export class Shop extends Scene {
             return wep || null;
         });
         
-        // Data fix: If we have an item but no price (e.g. valid load but missing price), calc it
+        // Data fix: If we have an item but no price
         this.shopItems.forEach((item, i) => {
              if (item && this.shopPrices[i] === null) {
                  this.shopPrices[i] = this.calculatePrice(item.basePrice);
              }
         });
 
-        this.itemContainers = [];
-        
         // Initialize ScrollViews
-        // Left: Inventory (Weapons/Items)
         this.leftContainer = new ScrollView(this, 20, 100, 300, this.scale.height - 150);
-        
-        // Right: Stats
         this.rightContainer = new ScrollView(this, this.scale.width - 320, 100, 300, this.scale.height - 150);
 
         this.createUI();
         
         // Reroll Logic
         if (!resumingShopSession) {
-             // New visit (after wave): Reroll, respecting locks
              this.reroll(true);
         } else {
-             // Resuming: Just show what we had
              this.refreshUI();
         }
 
@@ -217,40 +227,43 @@ export class Shop extends Scene {
         this.currencyText = this.add.text(w - 150, 50, `Gold: ${this.runState.currency}`, { fontSize: '24px', color: '#ffd700' }).setOrigin(0.5);
         
         // Items Grid (Center)
-        // Center X is w/2. Total width 620. Start X = w/2 - 310 + 150 (since container is 0,0 center? No, add.container puts it at X,Y)
-        // Let's assume container anchor is Top Left. 
-        // 400 + ... was old code.
         const gridStartX = (w / 2) - 310;
-        
+        this.shopItemsUI = [];
+
         for(let i=0; i<4; i++) {
-             // 2 columns: col 0 at startX, col 1 at startX + 320
-             // 2 rows
-             const x = gridStartX + (i % 2) * 320 + 150; // +150 to center the 300px box relative to point
+             const x = gridStartX + (i % 2) * 320 + 150;
              const y = 200 + Math.floor(i/2) * 220;
              const container = this.add.container(x, y);
-             this.itemContainers.push(container);
+
+             const bg = this.add.rectangle(0, 0, 300, 200, 0x222222);
+             bg.setStrokeStyle(2, 0x000000);
+             container.add(bg);
+
+             this.shopItemsUI.push({ container, bg });
         }
 
         // Reroll Button
-        this.rerollBtn = this.add.text(w/2, 650, `Reroll (${this.runState.rerollPrice})`, { 
-            fontSize: '28px', backgroundColor: '#333', padding: { x: 20, y: 10 }
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => this.manualReroll());
+        this.rerollBtn = new Button(this, {
+            x: w/2,
+            y: 650,
+            text: `Reroll (${this.runState.rerollPrice})`,
+            onClick: () => this.manualReroll()
+        });
+        this.rerollBtn.setNormalColor(0x333333);
 
         // Next Wave Button
-        this.add.text(w - 150, 650, 'Next Wave >>', {
-            fontSize: '28px', backgroundColor: '#006400', padding: { x: 20, y: 10 }
-        })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .on('pointerdown', () => {
-             this.runState.inShop = false;
-             this.saveGame();
-             this.scene.start('Game', { runState: this.runState });
+        this.nextWaveBtn = new Button(this, {
+            x: w - 150,
+            y: 650,
+            text: 'Next Wave >>',
+            onClick: () => {
+                 this.runState.inShop = false;
+                 this.saveGame();
+                 this.scene.start('Game', { runState: this.runState });
+            }
         });
-        
+        this.nextWaveBtn.setNormalColor(0x006400);
+
         this.refreshUI();
     }
     
@@ -335,55 +348,134 @@ export class Shop extends Scene {
     }
 
     refreshUI() {
-        this.itemContainers.forEach((container, i) => {
-            container.removeAll(true);
+        this.shopItemsUI.forEach((ui, i) => {
+            ui.container.removeAll(true);
             const item = this.shopItems[i];
             const price = this.shopPrices[i];
             
-            // Background
-            const bg = this.add.rectangle(0, 0, 300, 200, 0x222222);
-            bg.setStrokeStyle(2, this.locks[i] ? 0xff0000 : 0x000000);
-            container.add(bg);
+            // Background - no yellow highlight, just normal box
+            ui.bg = this.add.rectangle(0, 0, 300, 200, 0x222222);
+            ui.bg.setStrokeStyle(2, this.locks[i] ? 0xff0000 : 0xffffff);
+            ui.container.add(ui.bg);
 
             if (item && price !== null) {
                 // Name
                 const name = this.add.text(0, -60, item.name, { fontSize: '22px', fontStyle: 'bold', color: '#d0021b' }).setOrigin(0.5);
-                container.add(name);
-                
+                ui.container.add(name);
+
                 // Desc
                 const desc = this.add.text(0, -20, item.description, { fontSize: '16px', color: '#ccc', wordWrap: { width: 280 } }).setOrigin(0.5);
-                container.add(desc);
-                
+                ui.container.add(desc);
+
                 // Type/Tags
                 const tags = this.add.text(0, 10, item.tags.join(', '), { fontSize: '12px', color: '#888' }).setOrigin(0.5);
-                container.add(tags);
+                ui.container.add(tags);
 
                 // Buy Button
                 const canAfford = this.runState.currency >= price;
-                const buyBtn = this.add.text(0, 60, `Buy ${price}`, {
-                    fontSize: '24px', backgroundColor: canAfford ? '#008000' : '#444444', padding: { x:10, y:5 }
-                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-                
-                if (canAfford) {
-                    buyBtn.on('pointerdown', () => this.buyItem(i));
-                }
-                container.add(buyBtn);
-                
-                // Lock Button
-                const lockBtn = this.add.text(120, -80, this.locks[i] ? 'Locked' : 'Lock', {
-                     fontSize: '14px', backgroundColor: this.locks[i] ? '#ff0000' : '#444'
-                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-                lockBtn.on('pointerdown', () => this.lockItem(i));
-                container.add(lockBtn);
+                ui.buyBtn = new Button(this, {
+                    x: 0,
+                    y: 60,
+                    width: 150,
+                    height: 40,
+                    fontSize: '20px',
+                    text: `Buy ${price}`,
+                    onClick: () => this.buyItem(i),
+                    enabled: canAfford
+                });
+                ui.buyBtn.setNormalColor(canAfford ? 0x008000 : 0x444444);
 
+                // Highlight buy button ONLY if selected
+                if (this.selectedItem === i) {
+                    ui.buyBtn.highlight();
+                }
+
+                ui.container.add(ui.buyBtn);
+
+                // Lock Button - Square button on PS5 (X button code 2)
+                const lockText = this.locks[i] ? '[◻ Unlock]' : '[◻ Lock]';
+                const lockBtn = this.add.text(0, -80, lockText, {
+                    fontSize: '14px',
+                    color: this.locks[i] ? '#ffff00' : '#ffffff',
+                    backgroundColor: this.locks[i] ? '#ff6600' : '#444444',
+                    padding: { x: 8, y: 4 }
+                }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+                
+                lockBtn.on('pointerdown', () => {
+                    this.sound.play('press');
+                    this.lockItem(i);
+                });
+
+                ui.container.add(lockBtn);
             } else {
                 const sold = this.add.text(0, 0, 'SOLD', { fontSize: '24px', color: '#666' }).setOrigin(0.5);
-                container.add(sold);
+                ui.container.add(sold);
             }
         });
         
         this.updateStatsUI();
         this.updateCurrencyUI();
         this.updateInventoryUI();
+    }
+
+    update(delta: number) {
+        // Detect gamepad input - switch to controller mode
+        if (this.gamepadManager.isConnected()) {
+            const dpad = this.gamepadManager.getDPadInput();
+            const leftStick = this.gamepadManager.getLeftStickInput();
+            if (dpad.x !== 0 || dpad.y !== 0 || Math.abs(leftStick.x) > 0.5 || Math.abs(leftStick.y) > 0.5 ||
+                this.gamepadManager.isButtonDown('A') || this.gamepadManager.isButtonDown('X')) {
+                InputModeManager.setMode('controller');
+            }
+        }
+
+        this.inputCooldown -= delta;
+        if (this.inputCooldown > 0) return;
+
+        // Handle D-pad/Analog stick for navigation
+        const dpad = this.gamepadManager.getDPadInput();
+        const leftStick = this.gamepadManager.getLeftStickInput();
+
+        // Check for left/right input
+        let moveX = dpad.x;
+        if (Math.abs(leftStick.x) > 0.5) {
+            moveX = leftStick.x > 0 ? 1 : -1;
+        }
+
+        if (moveX !== 0) {
+            this.selectedItem = (this.selectedItem + Math.sign(moveX) + 4) % 4;
+            this.refreshUI();
+            this.inputCooldown = this.cooldownDuration;
+        }
+
+        // Check for up/down input
+        let moveY = dpad.y;
+        if (Math.abs(leftStick.y) > 0.5) {
+            moveY = leftStick.y > 0 ? 1 : -1;
+        }
+
+        if (moveY !== 0) {
+            const newItem = (this.selectedItem + Math.sign(moveY) * 2 + 4) % 4;
+            if (newItem !== this.selectedItem) {
+                this.selectedItem = newItem;
+                this.refreshUI();
+                this.inputCooldown = this.cooldownDuration;
+            }
+        }
+
+        // Handle A button to buy
+        if (this.gamepadManager.isButtonDown('A')) {
+            const item = this.shopItems[this.selectedItem];
+            if (item && this.runState.currency >= (this.shopPrices[this.selectedItem] || 0)) {
+                this.buyItem(this.selectedItem);
+            }
+            this.inputCooldown = this.cooldownDuration;
+        }
+
+        // Handle X (Square) button to lock/unlock
+        if (this.gamepadManager.isButtonDown('X')) {
+            this.lockItem(this.selectedItem);
+            this.inputCooldown = this.cooldownDuration;
+        }
     }
 }

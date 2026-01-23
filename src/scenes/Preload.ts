@@ -16,17 +16,23 @@ export class Preload extends Scene {
         // Load background music
         this.load.audio('bgm_bruh', 'assets/music/bruh.mp3');
         this.load.audio('gunshot', 'assets/sounds/gunshot.mp3');
+        this.load.audio('press', 'assets/sounds/press.mp3');
 
-        // Create a basic loading bar
+        // Create a basic loading bar - CENTERED
+        const barWidth = 300;
+        const barHeight = 30;
+        const cx = this.cameras.main.centerX;
+        const cy = this.cameras.main.centerY;
+
         const progressBar = this.add.graphics();
         const progressBox = this.add.graphics();
         progressBox.fillStyle(0x222222, 0.8);
-        progressBox.fillRect(240, 270, 320, 50);
+        progressBox.fillRect(cx - barWidth/2 - 10, cy - barHeight/2 - 10, barWidth + 20, barHeight + 20);
 
         this.load.on('progress', (value: number) => {
             progressBar.clear();
             progressBar.fillStyle(0xffffff, 1);
-            progressBar.fillRect(250, 280, 300 * value, 30);
+            progressBar.fillRect(cx - barWidth/2, cy - barHeight/2, barWidth * value, barHeight);
         });
 
         this.load.on('complete', () => {
