@@ -13,6 +13,9 @@ export class Preload extends Scene {
             this.load.audio(char.materialCollectionSoundKey, char.materialCollectionSoundLocation);
         })
 
+        // Load background music
+        this.load.audio('bgm_bruh', 'assets/music/bruh.mp3');
+
         // Create a basic loading bar
         const progressBar = this.add.graphics();
         const progressBox = this.add.graphics();

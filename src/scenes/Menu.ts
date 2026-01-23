@@ -7,6 +7,12 @@ export class Menu extends Scene {
 
     create() {
         console.log('Menu started');
+
+        // Play background music on loop
+        if (!this.sound.isPlaying('bgm_bruh')) {
+            this.sound.play('bgm_bruh', { loop: true, volume: 0.75 });
+        }
+
         const cx = this.cameras.main.centerX;
         const cy = this.cameras.main.centerY;
         console.log('Center:', cx, cy);
